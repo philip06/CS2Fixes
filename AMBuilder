@@ -75,6 +75,7 @@ for sdk_target in MMSPlugin.sdk_targets:
     'src/gamesystem.cpp',
     'src/votemanager.cpp',
     'src/httpmanager.cpp',
+    'src/timewalker.cpp',
     'src/discord.cpp',
     'src/map_votes.cpp',
     'src/entwatch.cpp',

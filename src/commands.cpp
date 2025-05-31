@@ -41,6 +41,7 @@
 #include "utils/entity.h"
 #include "utlstring.h"
 #include "zombiereborn.h"
+#include "timewalker.h"
 #undef snprintf
 #include "vendor/nlohmann/json.hpp"
 
@@ -502,6 +503,136 @@ CON_COMMAND_CHAT(hideteam, "<ct/t/off> - Hide an entire team from everyone")
 	}
 
 	g_cvarHiddenTeam.Set(teamToHide);
+}
+
+CON_COMMAND_CHAT(timewalker, "Timewalker gamemode commands: start, stop, force, status")
+{
+    if (args.ArgC() < 2)
+    {
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Usage: !timewalker <start|stop|force|status>");
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  start - Start timewalker gamemode");
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  stop  - Stop timewalker gamemode");
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  force - Force next freeze");
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  status - Show current status");
+        return;
+    }
+
+    const char* subcommand = args[1];
+
+    if (!V_stricmp(subcommand, "start"))
+    {
+        if (!player->GetZEPlayer()->IsAdminFlagSet(ADMFLAG_GENERIC))
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "You don't have permission to use this command.");
+            return;
+        }
+
+        if (!g_pTimewalkerManager)
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker manager not initialized.");
+            return;
+        }
+
+    	if (g_pTimewalkerManager->IsActive())
+    	{
+    		ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker gamemode is already running!");
+    		return;
+    	}
+
+        g_cvarTimewalkerEnable.Set(true);
+        g_pTimewalkerManager->Reset();
+        g_pTimewalkerManager->Init();
+
+        ClientPrintAll(HUD_PRINTTALK, CHAT_PREFIX "%s started timewalker gamemode!", player->GetPlayerName());
+    }
+    else if (!V_stricmp(subcommand, "stop"))
+    {
+        if (!player->GetZEPlayer()->IsAdminFlagSet(ADMFLAG_GENERIC))
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "You don't have permission to use this command.");
+            return;
+        }
+
+        if (!g_pTimewalkerManager)
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker manager not initialized.");
+            return;
+        }
+
+        g_cvarTimewalkerEnable.Set(false);
+        g_pTimewalkerManager->Reset();
+
+        ClientPrintAll(HUD_PRINTTALK, CHAT_PREFIX "%s stopped timewalker gamemode!", player->GetPlayerName());
+    }
+    else if (!V_stricmp(subcommand, "force"))
+    {
+        if (!player->GetZEPlayer()->IsAdminFlagSet(ADMFLAG_GENERIC))
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "You don't have permission to use this command.");
+            return;
+        }
+
+        if (!g_pTimewalkerManager || !g_pTimewalkerManager->IsActive())
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker gamemode is not active.");
+            return;
+        }
+
+        if (g_pTimewalkerManager->IsFreezeActive())
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker freeze is already active.");
+            return;
+        }
+
+        // Force start warning phase
+        new CTimer(1.0f, false, false, []() {
+            if (g_pTimewalkerManager && g_pTimewalkerManager->IsActive())
+                g_pTimewalkerManager->StartWarning();
+            return -1.0f;
+        });
+
+        ClientPrintAll(HUD_PRINTTALK, CHAT_PREFIX "%s is forcing a timewalker freeze in 1 second...", player->GetPlayerName());
+    }
+    else if (!V_stricmp(subcommand, "status"))
+    {
+        if (!g_pTimewalkerManager)
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker manager not initialized.");
+            return;
+        }
+
+        if (!g_pTimewalkerManager->IsActive())
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker gamemode is currently \x07DISABLED");
+            return;
+        }
+
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Timewalker gamemode is \x0AENABLED");
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  Interval: \x05%.1fs \x01| Duration: \x05%.1fs \x01| Warning: \x05%.1fs",
+                   g_pTimewalkerManager->GetFreezeInterval(),
+                   g_pTimewalkerManager->GetFreezeDuration(),
+                   g_pTimewalkerManager->GetWarningDuration());
+
+        if (g_pTimewalkerManager->IsFreezeActive())
+        {
+            int timewalkerSlot = g_pTimewalkerManager->GetTimewalkerSlot();
+            CCSPlayerController* pTimewalker = timewalkerSlot >= 0 ? CCSPlayerController::FromSlot(timewalkerSlot) : nullptr;
+            const char* timewalkerName = pTimewalker ? pTimewalker->GetPlayerName() : "Unknown";
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  Status: \x09FREEZE ACTIVE \x01- Timewalker: \x03%s", timewalkerName);
+        }
+        else if (g_pTimewalkerManager->IsWarningActive())
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  Status: \x08WARNING PHASE");
+        }
+        else
+        {
+            ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "  Status: \x0AWAITING NEXT CYCLE");
+        }
+    }
+    else
+    {
+        ClientPrint(player, HUD_PRINTTALK, CHAT_PREFIX "Unknown subcommand. Use: start, stop, force, or status");
+    }
 }
 
 CON_COMMAND_CHAT(hide, "<distance> - Hide nearby players")

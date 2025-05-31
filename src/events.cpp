@@ -34,6 +34,7 @@
 #include "recipientfilters.h"
 #include "votemanager.h"
 #include "zombiereborn.h"
+#include "timewalker.h"
 
 #include "tier0/memdbgon.h"
 
@@ -273,6 +274,10 @@ GAME_EVENT_F(round_start)
 		pPlayer->SetTotalHits(0);
 		pPlayer->SetTotalKills(0);
 	}
+
+	if (g_cvarTimewalkerEnable.Get() && g_pTimewalkerManager) {
+		g_pTimewalkerManager->OnRoundStart();
+	}
 }
 
 GAME_EVENT_F(round_end)
@@ -322,6 +327,9 @@ GAME_EVENT_F(round_end)
 		pPlayer->SetTotalHits(0);
 		pPlayer->SetTotalKills(0);
 	}
+
+	if (g_pTimewalkerManager)
+		g_pTimewalkerManager->OnRoundEnd();
 }
 
 GAME_EVENT_F(round_freeze_end)
