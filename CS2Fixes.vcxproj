@@ -201,6 +201,7 @@
     <ClCompile Include="src\gameconfig.cpp" />
     <ClCompile Include="src\gamesystem.cpp" />
     <ClCompile Include="src\httpmanager.cpp" />
+    <ClCompile Include="src\timewalker.cpp" />
     <ClCompile Include="src\idlemanager.cpp" />
     <ClCompile Include="src\map_votes.cpp" />
     <ClCompile Include="src\mempatch.cpp" />
@@ -272,6 +273,7 @@
     <ClInclude Include="src\gamesystem.h" />
     <ClInclude Include="src\gameconfig.h" />
     <ClInclude Include="src\httpmanager.h" />
+    <ClInclude Include="src\timewalker.h" />
     <ClInclude Include="src\idlemanager.h" />
     <ClInclude Include="src\mempatch.h" />
     <ClInclude Include="src\addresses.h" />

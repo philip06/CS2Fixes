@@ -60,6 +60,7 @@
 #include "usermessages.pb.h"
 #include "votemanager.h"
 #include "zombiereborn.h"
+#include "timewalker.h"
 #include <entity.h>
 
 #include "tier0/memdbgon.h"
@@ -324,6 +325,8 @@ bool CS2Fixes::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool
 		return false;
 	}
 
+	g_pTimewalkerManager = new CTimewalkerManager();
+
 	auto pCCSGameRulesVTable = modules::server->FindVirtualTable("CCSGameRules");
 
 	offset = g_GameConfig->GetOffset("CCSGameRules_GoToIntermission");
@@ -501,6 +504,9 @@ bool CS2Fixes::Unload(char* error, size_t maxlen)
 		g_pEWHandler->RemoveAllTriggers();
 		delete g_pEWHandler;
 	}
+
+	if (g_pTimewalkerManager)
+		delete g_pTimewalkerManager;
 
 	return true;
 }
@@ -856,6 +862,9 @@ void CS2Fixes::Hook_ClientDisconnect(CPlayerSlot slot, ENetworkDisconnectionReas
 	// Dont add to c_listdc clients that are downloading MultiAddonManager stuff or were present during a map change
 	if (reason != NETWORK_DISCONNECT_LOOPSHUTDOWN && reason != NETWORK_DISCONNECT_SHUTDOWN)
 		g_pAdminSystem->AddDisconnectedPlayer(pszName, xuid, pPlayer ? pPlayer->GetIpAddress() : "");
+
+	if (g_pTimewalkerManager)
+		g_pTimewalkerManager->OnPlayerDisconnect(slot);
 
 	g_playerManager->OnClientDisconnect(slot);
 }

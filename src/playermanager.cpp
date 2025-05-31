@@ -947,66 +947,83 @@ CConVar<bool> g_cvarHideTeammatesOnly("cs2f_hide_teammates_only", FCVAR_NONE, "W
 
 void CPlayerManager::CheckHideDistances()
 {
-	if (!g_pEntitySystem || !GetGlobals())
-		return;
+    if (!g_pEntitySystem || !GetGlobals())
+       return;
 
-	VPROF("CPlayerManager::CheckHideDistances");
+    VPROF("CPlayerManager::CheckHideDistances");
 
-	int hiddenTeam = g_cvarHiddenTeam.Get();
+    int hiddenTeam = g_cvarHiddenTeam.Get();
 
-	for (int i = 0; i < GetGlobals()->maxClients; i++)
-	{
-		auto player = GetPlayer(i);
+    for (int i = 0; i < GetGlobals()->maxClients; i++)
+    {
+       auto player = GetPlayer(i);
 
-		if (!player)
-			continue;
+       if (!player)
+          continue;
 
-		player->ClearTransmit();
-		auto hideDistance = player->GetHideDistance();
+       player->ClearTransmit();
+       auto hideDistance = player->GetHideDistance();
 
-		CCSPlayerController* pController = CCSPlayerController::FromSlot(i);
+       CCSPlayerController* pController = CCSPlayerController::FromSlot(i);
 
-		if (!pController)
-			continue;
+       if (!pController)
+          continue;
 
-		auto pPawn = pController->GetPawn();
+       auto pPawn = pController->GetPawn();
 
-		if (!pPawn || !pPawn->IsAlive())
-			continue;
+       if (!pPawn || !pPawn->IsAlive())
+          continue;
 
-		auto vecPosition = pPawn->GetAbsOrigin();
-		int team = pController->m_iTeamNum;
+       auto vecPosition = pPawn->GetAbsOrigin();
+       int team = pController->m_iTeamNum;
 
-		for (int j = 0; j < GetGlobals()->maxClients; j++)
-		{
-			if (j == i)
-				continue;
+       for (int j = 0; j < GetGlobals()->maxClients; j++)
+       {
+          if (j == i)
+             continue;
 
-			CCSPlayerController* pTargetController = CCSPlayerController::FromSlot(j);
+          CCSPlayerController* pTargetController = CCSPlayerController::FromSlot(j);
 
-			// TODO: Unhide dead pawns if/when valve fixes the crash
-			if (pTargetController)
-			{
-				auto pTargetPawn = pTargetController->GetPawn();
+          // TODO: Unhide dead pawns if/when valve fixes the crash
+          if (pTargetController)
+          {
+             auto pTargetPawn = pTargetController->GetPawn();
 
-				if (pTargetPawn)
-				{
-					bool transmitValue = false;
+             if (pTargetPawn && pTargetPawn->IsAlive())
+             {
+                bool shouldTransmit = false; // Default: show everyone
+                float currentTime = GetGlobals()->curtime;
 
-					if (hiddenTeam > 0 && pTargetController->m_iTeamNum == hiddenTeam)
-					{
-						transmitValue = true;
-					}
-					else if (hideDistance > 0 && (!g_cvarHideTeammatesOnly.Get() || pTargetController->m_iTeamNum == team))
-					{
-						transmitValue = pTargetPawn->GetAbsOrigin().DistToSqr(vecPosition) <= hideDistance * hideDistance;
-					}
+                ZEPlayer* pTargetZEPlayer = pTargetController->GetZEPlayer();
+                bool isTargetNoisy = false;
+                if (g_cvarNoiseDuration.Get() > 0.0f && pTargetZEPlayer)
+                {
+                   isTargetNoisy = pTargetZEPlayer->IsRecentlyNoisy(currentTime);
+                }
 
-					player->SetTransmit(j, transmitValue);
-				}
-			}
-		}
-	}
+                // Check for "both teams" hiding (hiddenTeam == 1)
+                if (hiddenTeam == 1)
+                {
+                   // Hide both teams UNLESS they're making noise
+                   shouldTransmit = !isTargetNoisy; // Show if noisy, hide if quiet
+                }
+                else if (hiddenTeam > 1 && pTargetController->m_iTeamNum == hiddenTeam)
+                {
+                   // Hide the specified team UNLESS they're making noise
+                   shouldTransmit = !isTargetNoisy; // Show if noisy, hide if quiet
+                }
+                else if (hideDistance > 0 && (!g_cvarHideTeammatesOnly.Get() || pTargetController->m_iTeamNum == team))
+                {
+                   bool withinDistance = pTargetPawn->GetAbsOrigin().DistToSqr(vecPosition) <= hideDistance * hideDistance;
+                   // Show if within distance OR making noise
+                   shouldTransmit = !(withinDistance || isTargetNoisy);
+                }
+
+                player->SetTransmit(j, shouldTransmit);
+             }
+          }
+       }
+    }
 }
 
 static const char* g_szPlayerStates[] =

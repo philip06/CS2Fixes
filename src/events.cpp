@@ -34,6 +34,7 @@
 #include "recipientfilters.h"
 #include "votemanager.h"
 #include "zombiereborn.h"
+#include "timewalker.h"
 
 #include "tier0/memdbgon.h"
 
@@ -273,6 +274,10 @@ GAME_EVENT_F(round_start)
 		pPlayer->SetTotalHits(0);
 		pPlayer->SetTotalKills(0);
 	}
+
+	if (g_cvarTimewalkerEnable.Get() && g_pTimewalkerManager) {
+		g_pTimewalkerManager->OnRoundStart();
+	}
 }
 
 GAME_EVENT_F(round_end)
@@ -322,6 +327,9 @@ GAME_EVENT_F(round_end)
 		pPlayer->SetTotalHits(0);
 		pPlayer->SetTotalKills(0);
 	}
+
+	if (g_pTimewalkerManager)
+		g_pTimewalkerManager->OnRoundEnd();
 }
 
 GAME_EVENT_F(round_freeze_end)
@@ -353,4 +361,66 @@ GAME_EVENT_F(cs_win_panel_match)
 
 	if (!g_pMapVoteSystem->IsVoteOngoing())
 		g_pMapVoteSystem->StartVote();
+}
+
+GAME_EVENT_F(weapon_fire)
+{
+	if (!g_cvarEnableHide.Get())
+		return;
+
+	CCSPlayerController* pController = (CCSPlayerController*)pEvent->GetPlayerController("userid");
+
+	if (!pController)
+		return;
+
+	ZEPlayer* pPlayer = pController->GetZEPlayer();
+
+	if (pPlayer)
+	{
+		pPlayer->SetLastNoiseTime(GetGlobals()->curtime);
+	}
+}
+
+GAME_EVENT_F(player_footstep)
+{
+	if (!g_cvarEnableHide.Get())
+		return;
+
+	CCSPlayerController* pController = (CCSPlayerController*)pEvent->GetPlayerController("userid");
+
+	if (!pController)
+		return;
+
+	CBasePlayerPawn* pPawn = pController->GetPawn();
+	ZEPlayer* pPlayer = pController->GetZEPlayer();
+
+	if (pPlayer && pPawn)
+	{
+		// Only count if player is moving fast enough (running vs walking)
+		Vector velocity = pPawn->m_vecAbsVelocity();
+		float speed = velocity.Length2D();
+
+		if (speed > 100.0f)
+		{
+			pPlayer->SetLastNoiseTime(GetGlobals()->curtime);
+		}
+	}
+}
+
+GAME_EVENT_F(player_jump)
+{
+	if (!g_cvarEnableHide.Get())
+		return;
+
+	CCSPlayerController* pController = (CCSPlayerController*)pEvent->GetPlayerController("userid");
+
+	if (!pController)
+		return;
+
+	ZEPlayer* pPlayer = pController->GetZEPlayer();
+
+	if (pPlayer)
+	{
+		pPlayer->SetLastNoiseTime(GetGlobals()->curtime);
+	}
 }
